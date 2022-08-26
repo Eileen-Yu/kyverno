@@ -25,7 +25,9 @@ func getAction(hasViolations bool, i int) string {
 // returns false -> if all the policies are meant to report only, we dont block resource request
 func BlockRequest(engineResponses []*response.EngineResponse, failurePolicy kyvernov1.FailurePolicyType, log logr.Logger) bool {
 	for _, er := range engineResponses {
-		if engineutils.BlockRequest(er, failurePolicy) {
+		// TODO: Remove Logger
+		log.V(0).Info("Outer Block request is called")
+		if engineutils.BlockRequest(er, failurePolicy, log) {
 			log.V(2).Info("blocking admission request", "policy", er.PolicyResponse.Policy.Name)
 			return true
 		}

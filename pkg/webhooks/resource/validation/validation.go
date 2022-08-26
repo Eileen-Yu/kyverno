@@ -133,6 +133,7 @@ func (v *validationHandler) HandleValidation(
 		)
 	}
 
+	logger.V(0).Info("Calling Block Request in Validation...")
 	blocked := webhookutils.BlockRequest(engineResponses, failurePolicy, logger)
 	if deletionTimeStamp == nil {
 		events := webhookutils.GenerateEvents(engineResponses, blocked)

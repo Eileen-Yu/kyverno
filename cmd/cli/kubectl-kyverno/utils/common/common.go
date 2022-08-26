@@ -726,7 +726,7 @@ func ProcessValidateEngineResponse(policy kyvernov1.PolicyInterface, validateRes
 						rc.Warn++
 						vrule.Status = policyreportv1alpha2.StatusWarn
 						break
-					} else if auditWarn && validateResponse.GetValidationFailureAction().Audit() {
+					} else if auditWarn && validateResponse.GetValidationFailureAction(log.Log).Audit() {
 						rc.Warn++
 						auditWarning = true
 						vrule.Status = policyreportv1alpha2.StatusWarn
@@ -811,7 +811,7 @@ func updateResultCounts(policy kyvernov1.PolicyInterface, engineResponse *respon
 					}
 					fmt.Printf("%d. %s - %s\n", i+1, ruleResponse.Name, ruleResponse.Message)
 
-					if auditWarn && engineResponse.GetValidationFailureAction().Audit() {
+					if auditWarn && engineResponse.GetValidationFailureAction(log.Log).Audit() {
 						rc.Warn++
 					} else {
 						rc.Fail++

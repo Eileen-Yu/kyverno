@@ -49,6 +49,7 @@ func Validate(ctx context.Context, rclient registryclient.Client, policyContext 
 	}()
 
 	resp = validateResource(ctx, logger, rclient, policyContext)
+	resp.NamespaceLabels = policyContext.namespaceLabels
 	return
 }
 
@@ -88,7 +89,8 @@ func buildResponse(ctx *PolicyContext, resp *response.EngineResponse, startTime 
 	resp.PolicyResponse.ValidationFailureAction = ctx.policy.GetSpec().ValidationFailureAction
 
 	for _, v := range ctx.policy.GetSpec().ValidationFailureActionOverrides {
-		resp.PolicyResponse.ValidationFailureActionOverrides = append(resp.PolicyResponse.ValidationFailureActionOverrides, response.ValidationFailureActionOverride{Action: v.Action, Namespaces: v.Namespaces})
+		newOverrides := response.ValidationFailureActionOverride{Action: v.Action, Namespaces: v.Namespaces, NamespaceSelector: v.NamespaceSelector}
+		resp.PolicyResponse.ValidationFailureActionOverrides = append(resp.PolicyResponse.ValidationFailureActionOverrides, newOverrides)
 	}
 
 	resp.PolicyResponse.ProcessingTime = time.Since(startTime)

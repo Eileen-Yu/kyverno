@@ -5,11 +5,16 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
+	"github.com/kyverno/kyverno/pkg/engine/wildcards"
 	pssutils "github.com/kyverno/kyverno/pkg/pss/utils"
 	"github.com/kyverno/kyverno/pkg/utils/wildcard"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/pod-security-admission/api"
 )
 
@@ -23,6 +28,9 @@ type EngineResponse struct {
 
 	// Policy Response
 	PolicyResponse PolicyResponse
+
+	// NamespaceLabels given by policy context
+	NamespaceLabels map[string]string
 }
 
 // PolicyResponse policy application response
@@ -246,18 +254,81 @@ func (er EngineResponse) getRules(predicate func(RuleStatus) bool) []string {
 	return rules
 }
 
-func (er *EngineResponse) GetValidationFailureAction() kyvernov1.ValidationFailureAction {
-	for _, v := range er.PolicyResponse.ValidationFailureActionOverrides {
-		for _, ns := range v.Namespaces {
-			if wildcard.Match(ns, er.PatchedResource.GetNamespace()) {
-				return v.Action
-			}
+func checkSelector(labelSelector *metav1.LabelSelector, resourceLabels map[string]string) (bool, error) {
+	if labelSelector == nil {
+		return false, nil
+	}
+
+	wildcards.ReplaceInSelector(labelSelector, resourceLabels)
+	selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+	if err != nil {
+		log.Log.Error(err, "failed to build label selector")
+		return false, err
+	}
+
+	if selector.Matches(labels.Set(resourceLabels)) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func matchNamespaces(resourceNamespace string, actionNamespaceList []string, log logr.Logger) bool {
+	for _, ns := range actionNamespaceList {
+		if wildcard.Match(ns, resourceNamespace) {
+			log.V(0).Info("matched litertal namespace")
+			return true
 		}
 	}
+
+	return false
+}
+
+func matchNamespaceLabels(resourceNamespaceLabels map[string]string, actionNamespaceSelector *metav1.LabelSelector, log logr.Logger) bool {
+	hasPass, err := checkSelector(actionNamespaceSelector, resourceNamespaceLabels)
+	if err == nil && hasPass {
+		log.V(0).Info("matched namespace selector")
+		return true
+	}
+
+	return false
+}
+
+func (er *EngineResponse) GetValidationFailureAction(log logr.Logger) kyvernov1.ValidationFailureAction {
+	resourceNamespaceMatchesOverride := false
+
+	log.V(0).Info("start to get action")
+	for _, v := range er.PolicyResponse.ValidationFailureActionOverrides {
+		if !v.Action.IsValid() {
+			continue
+		}
+
+		log.V(0).Info("Override is valid")
+
+		if !matchNamespaces(er.PatchedResource.GetNamespace(), v.Namespaces, log) && !matchNamespaceLabels(er.NamespaceLabels, v.NamespaceSelector, log) {
+			continue
+		}
+
+		log.V(0).Info("matched ns / ns labels")
+
+		if v.Action.Enforce() {
+			log.V(0).Info("return enforce")
+			return v.Action
+		}
+
+		resourceNamespaceMatchesOverride = true
+	}
+
+	if resourceNamespaceMatchesOverride == true {
+		log.V(0).Info("return audit")
+		return "audit"
+	}
+
 	return er.PolicyResponse.ValidationFailureAction
 }
 
 type ValidationFailureActionOverride struct {
-	Action     kyvernov1.ValidationFailureAction `json:"action"`
-	Namespaces []string                          `json:"namespaces"`
+	Action            kyvernov1.ValidationFailureAction `json:"action"`
+	Namespaces        []string                          `json:"namespaces,omitempty"`
+	NamespaceSelector *metav1.LabelSelector             `json:"namespaceSelector,omitempty" yaml:"namespaceSelector,omitempty"`
 }

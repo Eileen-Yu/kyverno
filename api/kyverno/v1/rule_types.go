@@ -10,7 +10,68 @@ import (
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type PolicyExceptionRequestSpec struct {
+	// PolicyName is a label to identify the target policy.
+	PolicyName string `json:"policyName" yaml:"policyName"`
+	// RuleName is a label to identify the target rule.
+	RuleName string `json:"ruleName" yaml:"ruleName"`
+	// Reason explains why the exception exists.
+	Reason string `json:"reason" yaml:"reason"`
+	// ExcludeResources defines when this policy rule should not be applied. The exclude
+	// criteria can include resource information (e.g. kind, name, namespace, labels)
+	// and admission review request information like the name or role.
+	ExcludeResources MatchResources `json:"exclude" yaml:"exclude"`
+}
+
+type PolicyExceptionRequestStateType string
+
+const (
+	// PendingApproval means the request is pending and waiting for administrator review.
+	PendingApproval PolicyExceptionRequestStateType = "PendingApproval"
+	// Approved means the request is accepted by administrator.
+	Approved PolicyExceptionRequestStateType = "Approved"
+	// Rejected means the request is rejected by administrator.
+	Rejected PolicyExceptionRequestStateType = "Rejected"
+)
+
+type PolicyExceptionRequestStatus struct {
+	// State defines the request state. This includes 'PendingApproval', 'Approved', 'Rejected'.
+	State PolicyExceptionRequestStateType `json:"state" yaml:"state"`
+}
+
+type PolicyExceptionRequest struct {
+	metav1.TypeMeta   `json:",inline,omitempty" yaml:",inline,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+
+	// Spec declares policy exception behaviors.
+	Spec PolicyExceptionRequestSpec `json:"spec" yaml:"spec"`
+
+	// Status declares if request is approved.
+	Status PolicyExceptionRequestStatus `json:"status,omitempty" yaml:"status,omitempty"`
+}
+
+type ApprovedPolicyException struct {
+	// Name defines the approved exception policy name. 
+  Name string `json:"name" yaml:"name"`
+	// Namespace defines the valid target namespace. 
+  Namespace string `json:"nameSpace" yaml:"nameSpace"`
+}
+
+type ApprovedPolicyExceptionSpec struct {
+	// Exceptions declares approved exception details.
+	Exceptions ApprovedPolicyException `json:"exceptions" yaml:"exceptions"`
+}
+
+type Approvals struct {
+	metav1.TypeMeta   `json:",inline,omitempty" yaml:",inline,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+
+	// ApprovedPolicyExceptionSpec declares approved exception behaviors.
+	ApprovedPolicyExceptionSpec `json:"spec" yaml:"spec"`
+}
 
 type ImageExtractorConfigs map[string][]ImageExtractorConfig
 

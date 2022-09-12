@@ -37,6 +37,10 @@ spec:
               exceptions:
                 description: Exceptions declares approved exception details.
                 properties:
+                  duration:
+                    description: Duration defines the effective time duration of the
+                      exception.
+                    type: string
                   name:
                     description: Name defines the approved exception policy name.
                     type: string
@@ -44,6 +48,7 @@ spec:
                     description: Namespace defines the valid target namespace.
                     type: string
                 required:
+                - duration
                 - name
                 - nameSpace
                 type: object

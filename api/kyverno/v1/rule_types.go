@@ -24,6 +24,8 @@ type PolicyExceptionRequestSpec struct {
 	// criteria can include resource information (e.g. kind, name, namespace, labels)
 	// and admission review request information like the name or role.
 	ExcludeResources MatchResources `json:"exclude" yaml:"exclude"`
+	// Duration defines the effective time duration of the exception.
+	Duration string `json:"duration,omitempty" yaml:"duration,omitempty"`
 }
 
 type PolicyExceptionRequestStateType string
@@ -58,6 +60,8 @@ type ApprovedPolicyException struct {
   Name string `json:"name" yaml:"name"`
 	// Namespace defines the valid target namespace. 
   Namespace string `json:"nameSpace" yaml:"nameSpace"`
+	// Duration defines the effective time duration of the exception.
+	Duration string `json:"duration" yaml:"duration"`
 }
 
 type ApprovedPolicyExceptionSpec struct {

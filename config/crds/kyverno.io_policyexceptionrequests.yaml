@@ -34,6 +34,9 @@ spec:
           spec:
             description: Spec declares policy exception behaviors.
             properties:
+              duration:
+                description: Duration defines the effective time duration of the exception.
+                type: string
               exclude:
                 description: ExcludeResources defines when this policy rule should
                   not be applied. The exclude criteria can include resource information

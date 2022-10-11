@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	kyvernov1beta1 "github.com/kyverno/kyverno/api/kyverno/v1beta1"
+	kyvernov2beta1 "github.com/kyverno/kyverno/api/kyverno/v2beta1"
 	utilscommon "github.com/kyverno/kyverno/cmd/cli/kubectl-kyverno/utils/common"
 	"github.com/kyverno/kyverno/pkg/autogen"
 	common "github.com/kyverno/kyverno/pkg/background/common"
@@ -19,8 +20,10 @@ import (
 	"github.com/kyverno/kyverno/pkg/client/clientset/versioned/scheme"
 	kyvernov1informers "github.com/kyverno/kyverno/pkg/client/informers/externalversions/kyverno/v1"
 	kyvernov1beta1informers "github.com/kyverno/kyverno/pkg/client/informers/externalversions/kyverno/v1beta1"
+	kyvernov2beta1informers "github.com/kyverno/kyverno/pkg/client/informers/externalversions/kyverno/v2beta1"
 	kyvernov1listers "github.com/kyverno/kyverno/pkg/client/listers/kyverno/v1"
 	kyvernov1beta1listers "github.com/kyverno/kyverno/pkg/client/listers/kyverno/v1beta1"
+	kyvernov2beta1listers "github.com/kyverno/kyverno/pkg/client/listers/kyverno/v2beta1"
 	"github.com/kyverno/kyverno/pkg/clients/dclient"
 	"github.com/kyverno/kyverno/pkg/config"
 	"github.com/kyverno/kyverno/pkg/event"
@@ -58,6 +61,7 @@ type PolicyController struct {
 	kyvernoClient versioned.Interface
 	pInformer     kyvernov1informers.ClusterPolicyInformer
 	npInformer    kyvernov1informers.PolicyInformer
+	peInformer    kyvernov2beta1informers.PolicyExceptionInformer
 
 	eventGen      event.Interface
 	eventRecorder record.EventRecorder
@@ -73,6 +77,9 @@ type PolicyController struct {
 
 	// urLister can list/get update request from the shared informer's store
 	urLister kyvernov1beta1listers.UpdateRequestLister
+
+	// peLister can list/get PolicyExceptions from the shared informer's store
+	peLister kyvernov2beta1listers.PolicyExceptionLister
 
 	// nsLister can list/get namespaces from the shared informer's store
 	nsLister corev1listers.NamespaceLister
@@ -99,6 +106,7 @@ func NewPolicyController(
 	pInformer kyvernov1informers.ClusterPolicyInformer,
 	npInformer kyvernov1informers.PolicyInformer,
 	urInformer kyvernov1beta1informers.UpdateRequestInformer,
+	peInformer kyvernov2beta1informers.PolicyExceptionInformer,
 	configHandler config.Configuration,
 	eventGen event.Interface,
 	namespaces corev1informers.NamespaceInformer,
@@ -120,6 +128,7 @@ func NewPolicyController(
 		kyvernoClient:   kyvernoClient,
 		pInformer:       pInformer,
 		npInformer:      npInformer,
+		peInformer:      peInformer,
 		eventGen:        eventGen,
 		eventRecorder:   eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "policy_controller"}),
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "policy"),
@@ -133,8 +142,9 @@ func NewPolicyController(
 	pc.npLister = npInformer.Lister()
 	pc.nsLister = namespaces.Lister()
 	pc.urLister = urInformer.Lister()
+	pc.peLister = peInformer.Lister()
 
-	pc.informersSynced = []cache.InformerSynced{pInformer.Informer().HasSynced, npInformer.Informer().HasSynced, urInformer.Informer().HasSynced, namespaces.Informer().HasSynced}
+	pc.informersSynced = []cache.InformerSynced{pInformer.Informer().HasSynced, npInformer.Informer().HasSynced, urInformer.Informer().HasSynced, peInformer.Informer().HasSynced, namespaces.Informer().HasSynced}
 	// resource manager
 	// rebuild after 300 seconds/ 5 mins
 	pc.rm = NewResourceManager(30)
@@ -228,6 +238,29 @@ func (pc *PolicyController) deletePolicy(obj interface{}) {
 		}
 	}
 	pc.enqueuePolicy(p)
+}
+
+func (pc *PolicyController) addPolicyException(obj interface{}) {
+	logger := pc.log
+	p := obj.(*kyvernov2beta1.PolicyException)
+
+	logger.Info("😉PolicyException created", "uid", p.UID, "kind", "PolicyException", "name", p.Name)
+}
+
+func (pc *PolicyController) updatePolicyException(old, cur interface{}) {
+	logger := pc.log
+	p := old.(*kyvernov2beta1.PolicyException)
+	q := cur.(*kyvernov2beta1.PolicyException)
+
+	logger.Info("😉PolicyException updated", "uid", p.UID, "kind", "PolicyException", "name", p.Name)
+	logger.Info("😉PolicyException updated", "uid", q.UID, "kind", "PolicyException", "name", q.Name)
+}
+
+func (pc *PolicyController) deletePolicyException(obj interface{}) {
+	logger := pc.log
+	p := obj.(*kyvernov2beta1.PolicyException)
+
+	logger.Info("😉PolicyException deleted", "uid", p.UID, "kind", "PolicyException", "name", p.Name)
 }
 
 func (pc *PolicyController) addNsPolicy(obj interface{}) {
@@ -339,6 +372,12 @@ func (pc *PolicyController) Run(ctx context.Context, workers int) {
 		AddFunc:    pc.addNsPolicy,
 		UpdateFunc: pc.updateNsPolicy,
 		DeleteFunc: pc.deleteNsPolicy,
+	})
+
+	pc.peInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    pc.addPolicyException,
+		UpdateFunc: pc.updatePolicyException,
+		DeleteFunc: pc.deletePolicyException,
 	})
 
 	for i := 0; i < workers; i++ {

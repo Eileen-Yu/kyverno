@@ -423,6 +423,7 @@ func createrLeaderControllers(
 		kyvernoInformer.Kyverno().V1().ClusterPolicies(),
 		kyvernoInformer.Kyverno().V1().Policies(),
 		kyvernoInformer.Kyverno().V1beta1().UpdateRequests(),
+		kyvernoInformer.Kyverno().V2beta1().PolicyExceptions(),
 		configuration,
 		eventGenerator,
 		kubeInformer.Core().V1().Namespaces(),

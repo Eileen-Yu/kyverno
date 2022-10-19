@@ -12,7 +12,11 @@ import (
 	"github.com/kyverno/kyverno/pkg/metrics"
 	"github.com/kyverno/kyverno/pkg/openapi"
 	"github.com/kyverno/kyverno/pkg/policycache"
+<<<<<<< HEAD
 	"github.com/kyverno/kyverno/pkg/registryclient"
+=======
+	policyexceptions "github.com/kyverno/kyverno/pkg/policyexceptions"
+>>>>>>> 0f508da07 (feat: design policy exception interface and usage)
 	"github.com/kyverno/kyverno/pkg/webhooks"
 	"github.com/kyverno/kyverno/pkg/webhooks/updaterequest"
 	webhookutils "github.com/kyverno/kyverno/pkg/webhooks/utils"
@@ -37,6 +41,7 @@ func NewFakeHandlers(ctx context.Context, policyCache policycache.Cache) webhook
 	rbLister := informers.Rbac().V1().RoleBindings().Lister()
 	crbLister := informers.Rbac().V1().ClusterRoleBindings().Lister()
 	urLister := kyvernoInformers.Kyverno().V1beta1().UpdateRequests().Lister().UpdateRequests(config.KyvernoNamespace())
+	mockException := policyexceptions.NewMockPolicyException()
 
 	return &handlers{
 		client:         dclient,
@@ -51,7 +56,7 @@ func NewFakeHandlers(ctx context.Context, policyCache policycache.Cache) webhook
 		urGenerator:    updaterequest.NewFake(),
 		eventGen:       event.NewFake(),
 		openApiManager: openapi.NewFake(),
-		pcBuilder:      webhookutils.NewPolicyContextBuilder(configuration, dclient, rbLister, crbLister, configMapResolver),
+		pcBuilder:      webhookutils.NewPolicyContextBuilder(configuration, dclient, rbLister, crbLister, configMapResolver, mockException),
 		urUpdater:      webhookutils.NewUpdateRequestUpdater(kyvernoclient, urLister),
 	}
 }

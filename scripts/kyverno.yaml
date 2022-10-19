@@ -4,13 +4,14 @@ initContainer:
 
 extraArgs:
   - --loggingFormat=text
+  - --enablePolicyException=true
+  - --exceptionNamespace=kyverno
 
 cleanupController:
   rbac:
     clusterRole:
       extraResources:
         - apiGroups:
-            - ''
+            - ""
           resources:
             - pods
-

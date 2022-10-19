@@ -41,6 +41,7 @@ import (
 	"github.com/kyverno/kyverno/pkg/openapi"
 	"github.com/kyverno/kyverno/pkg/policy"
 	"github.com/kyverno/kyverno/pkg/policycache"
+	policyexceptions "github.com/kyverno/kyverno/pkg/policyexceptions"
 	"github.com/kyverno/kyverno/pkg/registryclient"
 	"github.com/kyverno/kyverno/pkg/tls"
 	"github.com/kyverno/kyverno/pkg/toggle"
@@ -342,6 +343,8 @@ func main() {
 		backgroundScanWorkers      int
 		dumpPayload                bool
 		leaderElectionRetryPeriod  time.Duration
+		enablePolicyException      bool
+		exceptionNamespace         string
 		// DEPRECATED: remove in 1.9
 		splitPolicyReport bool
 	)
@@ -363,6 +366,8 @@ func main() {
 	flagset.IntVar(&reportsChunkSize, "reportsChunkSize", 1000, "Max number of results in generated reports, reports will be split accordingly if there are more results to be stored.")
 	flagset.IntVar(&backgroundScanWorkers, "backgroundScanWorkers", backgroundscancontroller.Workers, "Configure the number of background scan workers.")
 	flagset.DurationVar(&leaderElectionRetryPeriod, "leaderElectionRetryPeriod", leaderelection.DefaultRetryPeriod, "Configure leader election retry period.")
+	flagset.StringVar(&exceptionNamespace, "exceptionNamespace", "", "Configure the namespace to accept PolicyExceptions.")
+	flagset.BoolVar(&enablePolicyException, "enablePolicyException", false, "Enable PolicyException feature.")
 	// DEPRECATED: remove in 1.9
 	flagset.BoolVar(&splitPolicyReport, "splitPolicyReport", false, "This is deprecated, please don't use it, will be removed in v1.9.")
 	// config
@@ -475,6 +480,16 @@ func main() {
 		kubeKyvernoInformer.Apps().V1().Deployments(),
 		certRenewer,
 	)
+
+	var policyExceptionManager *policyexceptions.PolicyExceptionManager = &policyexceptions.PolicyExceptionManager{}
+	if enablePolicyException == true {
+		policyExceptionManager = policyexceptions.NewPolicyExceptionManager(
+			kyvernoInformer.Kyverno().V2beta1().PolicyExceptions(),
+			logging.WithName("PolicyExceptionManager"),
+			exceptionNamespace,
+		)
+	}
+
 	// create non leader controllers
 	nonLeaderControllers, nonLeaderBootstrap := createNonLeaderControllers(
 		genWorkers,
@@ -504,6 +519,12 @@ func main() {
 	}
 	// start event generator
 	go eventGenerator.Run(signalCtx, 3)
+
+	// start policyexception informer
+	if policyExceptionManager != nil {
+		go policyExceptionManager.Run(signalCtx, 1)
+	}
+
 	// setup leader election
 	le, err := leaderelection.New(
 		logger.WithName("leader-election"),
@@ -551,6 +572,7 @@ func main() {
 				logger.Error(err, "failed to create leader controllers")
 				os.Exit(1)
 			}
+
 			// start informers and wait for cache sync
 			if !internal.StartInformersAndWaitForCacheSync(signalCtx, kyvernoInformer, kubeInformer, kubeKyvernoInformer) {
 				logger.Error(errors.New("failed to wait for cache sync"), "failed to wait for cache sync")
@@ -602,6 +624,7 @@ func main() {
 		dClient,
 		openApiManager,
 	)
+
 	resourceHandlers := webhooksresource.NewHandlers(
 		dClient,
 		kyvernoClient,
@@ -618,6 +641,7 @@ func main() {
 		eventGenerator,
 		openApiManager,
 		admissionReports,
+		policyExceptionManager,
 	)
 	server := webhooks.NewServer(
 		policyHandlers,

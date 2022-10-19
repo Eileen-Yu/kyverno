@@ -26,7 +26,11 @@ import (
 	"github.com/kyverno/kyverno/pkg/engine/response"
 	ut "github.com/kyverno/kyverno/pkg/engine/utils"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
+<<<<<<< HEAD
 	"github.com/kyverno/kyverno/pkg/registryclient"
+=======
+	exceptions "github.com/kyverno/kyverno/pkg/policyexceptions"
+>>>>>>> 0f508da07 (feat: design policy exception interface and usage)
 	yamlutils "github.com/kyverno/kyverno/pkg/utils/yaml"
 	yamlv2 "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -456,7 +460,8 @@ OuterLoop:
 		WithNewResource(*updatedResource).
 		WithNamespaceLabels(namespaceLabels).
 		WithAdmissionInfo(c.UserInfo).
-		WithClient(c.Client)
+		WithClient(c.Client).
+		WithExceptions(exceptions.NewMockPolicyException())
 
 	mutateResponse := engine.Mutate(registryclient.NewOrDie(), policyContext)
 	if mutateResponse != nil {

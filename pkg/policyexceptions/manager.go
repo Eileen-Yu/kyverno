@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-logr/logr"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
-	kyvernov2beta1 "github.com/kyverno/kyverno/api/kyverno/v2beta1"
-	kyvernov2beta1informers "github.com/kyverno/kyverno/pkg/client/informers/externalversions/kyverno/v2beta1"
+	kyvernov2alpha1 "github.com/kyverno/kyverno/api/kyverno/v2alpha1"
+	kyvernov2alpha1informers "github.com/kyverno/kyverno/pkg/client/informers/externalversions/kyverno/v2alpha1"
 	kubeutils "github.com/kyverno/kyverno/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -15,13 +15,13 @@ import (
 )
 
 type PolicyExceptionManager struct {
-	peInformer      kyvernov2beta1informers.PolicyExceptionInformer
+	peInformer      kyvernov2alpha1informers.PolicyExceptionInformer
 	informersSynced []cache.InformerSynced
 	log             logr.Logger
 	namespace       string
 }
 
-func NewPolicyExceptionManager(peInformer kyvernov2beta1informers.PolicyExceptionInformer, logger logr.Logger, namespace string) *PolicyExceptionManager {
+func NewPolicyExceptionManager(peInformer kyvernov2alpha1informers.PolicyExceptionInformer, logger logr.Logger, namespace string) *PolicyExceptionManager {
 	c := &PolicyExceptionManager{
 		peInformer: peInformer,
 		log:        logger,
@@ -55,7 +55,7 @@ func (c *PolicyExceptionManager) Run(ctx context.Context, workers int) {
 }
 
 func (c *PolicyExceptionManager) addPolicyException(obj interface{}) {
-	p := obj.(*kyvernov2beta1.PolicyException)
+	p := obj.(*kyvernov2alpha1.PolicyException)
 
 	logger := c.log
 	logger.Info("policy exception created", "uid", p.UID, "kind", "PolicyException", "name", p.Name)
@@ -64,8 +64,8 @@ func (c *PolicyExceptionManager) addPolicyException(obj interface{}) {
 func (c *PolicyExceptionManager) updatePolicyException(old, cur interface{}) {
 	logger := c.log
 
-	oldP := old.(*kyvernov2beta1.PolicyException)
-	curP := cur.(*kyvernov2beta1.PolicyException)
+	oldP := old.(*kyvernov2alpha1.PolicyException)
+	curP := cur.(*kyvernov2alpha1.PolicyException)
 
 	if reflect.DeepEqual(oldP.Spec, curP.Spec) {
 		return
@@ -80,7 +80,7 @@ func (c *PolicyExceptionManager) updatePolicyException(old, cur interface{}) {
 }
 
 func (c *PolicyExceptionManager) deletePolicyException(obj interface{}) {
-	p, ok := kubeutils.GetObjectWithTombstone(obj).(*kyvernov2beta1.PolicyException)
+	p, ok := kubeutils.GetObjectWithTombstone(obj).(*kyvernov2alpha1.PolicyException)
 	if !ok {
 		c.log.Info("Failed to get deleted object", "obj", obj)
 		return
@@ -92,7 +92,7 @@ func (c *PolicyExceptionManager) deletePolicyException(obj interface{}) {
 }
 
 type ExceptionLister interface {
-	List(selector labels.Selector) (ret []*kyvernov2beta1.PolicyException, err error)
+	List(selector labels.Selector) (ret []*kyvernov2alpha1.PolicyException, err error)
 }
 
 func (c *PolicyExceptionManager) ExceptionsByRule(policy kyvernov1.PolicyInterface, ruleName string) ExcludeResource {
@@ -124,7 +124,7 @@ func (c *PolicyExceptionManager) ExceptionsByRule(policy kyvernov1.PolicyInterfa
 		}
 	}
 
-	return excludeResource
+				return excludeResource
 }
 
 // isNil checks if PolicyExceptionManager is an empty manager

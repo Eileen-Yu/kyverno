@@ -484,7 +484,7 @@ func main() {
 	var policyExceptionManager *policyexceptions.PolicyExceptionManager = &policyexceptions.PolicyExceptionManager{}
 	if enablePolicyException == true {
 		policyExceptionManager = policyexceptions.NewPolicyExceptionManager(
-			kyvernoInformer.Kyverno().V2beta1().PolicyExceptions(),
+			kyvernoInformer.Kyverno().V2alpha1().PolicyExceptions(),
 			logging.WithName("PolicyExceptionManager"),
 			exceptionNamespace,
 		)

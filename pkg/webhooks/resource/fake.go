@@ -12,11 +12,8 @@ import (
 	"github.com/kyverno/kyverno/pkg/metrics"
 	"github.com/kyverno/kyverno/pkg/openapi"
 	"github.com/kyverno/kyverno/pkg/policycache"
-<<<<<<< HEAD
 	"github.com/kyverno/kyverno/pkg/registryclient"
-=======
 	policyexceptions "github.com/kyverno/kyverno/pkg/policyexceptions"
->>>>>>> 0f508da07 (feat: design policy exception interface and usage)
 	"github.com/kyverno/kyverno/pkg/webhooks"
 	"github.com/kyverno/kyverno/pkg/webhooks/updaterequest"
 	webhookutils "github.com/kyverno/kyverno/pkg/webhooks/utils"

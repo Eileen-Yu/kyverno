@@ -122,19 +122,37 @@ func validateResource(log logr.Logger, rclient registryclient.Client, ctx *Polic
 		if !matches(log, rule, ctx) {
 			continue
 		}
+    // if matches, check if there is corresponding policy exception
+		isExcepted := matchesException(log, rule, ctx)
+
 
 		log.V(3).Info("processing validation rule", "matchCount", matchCount, "applyRules", applyRules)
 		ctx.jsonContext.Reset()
 		startTime := time.Now()
 
 		var ruleResp *response.RuleResponse
-		if hasValidate && !hasYAMLSignatureVerify {
-			ruleResp = processValidationRule(log, rclient, ctx, rule)
-		} else if hasValidateImage {
-			ruleResp = processImageValidationRule(log, rclient, ctx, rule)
-		} else if hasYAMLSignatureVerify {
-			ruleResp = processYAMLValidationRule(log, ctx, rule)
+		if isExcepted {
+			// log rule was skipped because of an exception
+			// create a skip response
+			// increase metrics
+			exceptionName := ctx.PolicyExceptions.GetName()
+
+			ruleResp = &response.RuleResponse{
+				Name: rule.Name,
+				Message: "Rule skipped because of PolicyException" + exceptionName,
+				Status: response.RuleStatusSkip,
+			}
+
+			return resp 
 		}
+
+	  if hasValidate && !hasYAMLSignatureVerify {
+	  	ruleResp = processValidationRule(log, rclient, ctx, rule)
+	  } else if hasValidateImage {
+	  	ruleResp = processImageValidationRule(log, rclient, ctx, rule)
+	  } else if hasYAMLSignatureVerify {
+	  	ruleResp = processYAMLValidationRule(log, ctx, rule)
+	  }
 
 		if ruleResp != nil {
 			addRuleResponse(log, resp, ruleResp, startTime)
@@ -788,3 +806,30 @@ func (v *validator) substituteDeny() error {
 	v.deny = i.(*kyvernov1.Deny)
 	return nil
 }
+
+// matchesException gets excepted resources
+// checks if excepted resources include the target resource
+// return true if resources match excepted resource
+func matchesException(log logr.Logger, rule *kyvernov1.Rule, ctx *PolicyContext) bool {
+	if ctx.PolicyExceptions != nil && !ctx.PolicyExceptions.IsNil() {
+		exceptions := ctx.PolicyExceptions.ExceptionsByRule(ctx.policy, rule.Name)
+		exceptedResources, err := json.Unmarshal(exceptions, &newMap)
+		if err!= nil {
+			return false
+		}
+		// TODO: check if exceptedResources contains the target resource (ctx.newResource)
+		targetResource := ctx.newResource.Object
+
+		for _, e := range exceptedResources {
+			if targetResource == e {
+			  log.V(2).Info("rule %s skipped due to policyException", rule.Name)
+			  return true
+			}
+		} 
+		return false 
+  }
+
+	return false 
+}
+
+// 			  return ruleResponse(*rule, response.Validation, "rule skipped", response.RuleStatusSkip, nil)

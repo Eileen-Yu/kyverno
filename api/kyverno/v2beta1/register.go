@@ -35,8 +35,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&ClusterPolicyList{},
 		&Policy{},
 		&PolicyList{},
-		&PolicyException{},
-		&PolicyExceptionList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

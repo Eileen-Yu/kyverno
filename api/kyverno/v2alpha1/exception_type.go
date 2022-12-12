@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v2beta1
+package v2alpha1
 
 import (
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
